@@ -123,14 +123,14 @@ def MoveTo(Arm, Pos, rot = (0.0,-1.0,0.0,0.0), PosOffset = (0.0,0.0,0.0)):
     Arm.execute(right_plan)
 
 def GripperOpen():#Open the right gripper
-    print('Opening...')
+    print('Gripper Opening...')
     right_gripper.open(block=True)
     rospy.sleep(0.5)
     offset_holding(right_gripper, 100.0)
 
 def GripperClose():
     #Open the right gripper
-    print('Close...')
+    print('Gripper Closing...')
     right_gripper.close(block=True)
     rospy.sleep(0.5)
     offset_holding(right_gripper, 100.0)
@@ -138,14 +138,14 @@ def GripperClose():
 def UpdateBallTransforms():
     global br
     global Ball_list
-    br.sendTransform((0.065, 0.0, 0.0), 
+    br.sendTransform((0.08, 0.0, 0.0), #(0.065, 0.0, 0.0) OLD OFFSET
         (0.0,0.0,0.0,1.0), 
         rospy.Time.now(), 
         'Basket', 
         'ar_marker_8')
     if len(Ball_list) > 0:
         for t in Ball_list:
-            br.sendTransform((0.065, 0.0, 0.015), 
+            br.sendTransform((0.065, 0.0, 0.025), #(0.065, 0.0, 0.015) OLD OFFSET
                 (0.0,0.0,0.0,1.0), 
                 rospy.Time.now(), 
                 t[0][1:], 
@@ -159,10 +159,9 @@ def LookupTransform(Source, End, Guess):
             UpdateBallTransforms()
             return listener.lookupTransform(Source, End, rospy.Time(0))#(0))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            #print "TF ERROR"
             rospy.sleep(0.1)
             continue
-    print "TIMOUT" 
+    print "TF ERROR: Cannot Find Transform"
     return Guess
 
 def FindZRotation(q):
@@ -223,7 +222,7 @@ def DropBallInBasket(InitialLocation, Marker, zUpOffset = 0.18):
     (location,rot) = LookupTransform('/base', Marker,(location,rot))
 
 if __name__ == '__main__':
-    print "begin"
+    print "Begin Init"
     Ball_list = []
     #os.system("rosrun baxter_tools tuck_arms.py -t")
     rospy.init_node('baxterball')
@@ -233,21 +232,36 @@ if __name__ == '__main__':
     br = tf.TransformBroadcaster()
     rate = rospy.Rate(10.0)
 
-    print "start"
+    print "Start Running"
     while not rospy.is_shutdown():
         #try:
         #Init Arm config
         GripperOpen()
-        MoveTo(left_arm, (0.70897, -0.16858, -0.055098), (0.73035, 0.53993, -0.32156, 0.2677))
-        MoveTo(right_arm, (0.6, -0.4, .2), (0.70710678118,0.70710678118,0.0,0.0))#(0.0, -1.0, 0.0, 0.0))
-        CameraClose(right_hand_camera)
-        CameraOpen(left_hand_camera)
+        print 'Moving Left Arm'
+        MoveTo(left_arm, (0.6, 0.4, .2), (0.70710678118,0.70710678118,0.0,0.0))
+        CameraClose(left_hand_camera)
+        CameraOpen(right_hand_camera)
+        print "Opening Right Camera"
+        '''try:
+            MoveTo(left_arm, (0.70897, -0.16858, -0.055098), (0.73035, 0.53993, -0.32156, 0.2677))
+        except(e):
+            print "Error, Could not move left arm"'''
+        print 'Moving Right Arm'
+        try:
+            MoveTo(right_arm, (0.6, -0.4, .2), (0.70710678118,0.70710678118,0.0,0.0))#(0.0, -1.0, 0.0, 0.0))
+        except(e):
+            print "Error, Could not move right arm"
+        #print "Opening Left Camera"
+        #CameraClose(right_hand_camera)
+        #CameraOpen(left_hand_camera)
+        print "Finding Basket"
         Basket_location = LookupTransform('/base', '/ar_marker_8', ((0.0,0.0,0.0),(0.0,0.0,0.0,1.0)))
-        br.sendTransform((0.065, 0.0, 0.00), 
+        print "Basket Location: " + str(Basket_location)
+        '''br.sendTransform((0.065, 0.0, 0.00), 
             (0.0,0.0,0.0,1.0), 
             rospy.Time.now(), 
             'Basket', 
-            'ar_marker_8')
+            'ar_marker_8')'''
         Ball_location = ((0.0,0.0,0.0),(0.0,0.0,0.0,1.0))
         Ball_list = []
         for tag in [('ar_marker_2', 'Ball_1'),('ar_marker_1', 'Ball_2'),('ar_marker_5', 'Ball_3'),]:
@@ -260,20 +274,28 @@ if __name__ == '__main__':
                     tag[1], 
                     tag[0])
                 Ball_list.append(('/'+ tag[1], Ball_location,'/'+ tag[0]))
+                print "Found " + str(tag[1]) + " at " + str(tag[0])
             except(tf.Exception):
+                print "Could not find " + str(tag[1]) + " at " + str(tag[0])
                 continue
-        print Ball_list
-        CameraClose(left_hand_camera)
-        CameraOpen(right_hand_camera)
-        rospy.sleep(2.0)
-        MoveTo(left_arm, (0.6, 0.4, .2), (0.70710678118,0.70710678118,0.0,0.0))
-        print "Basket Location: "
-        print Basket_location
+        #print Ball_list
+        #print "Opening Right Camera"
+        #CameraClose(left_hand_camera)
+        #CameraOpen(right_hand_camera)
+        #rospy.sleep(2.0)
+        #print "Moving left arm out of the way"
+        #MoveTo(left_arm, (0.6, 0.2, .2), (0.70710678118,0.70710678118,0.0,0.0))
+        #print "Basket Location: "
+        #print Basket_location
+        print "Finding Basket with right arm"
         Basket_location = FindBasket(Basket_location, '/ar_marker_8', '/Basket')
         print Basket_location
         for t in Ball_list:
+            print "Picking up " + str(t[0]) + " at " + str(t[2])
             PickUpBall(t[1], t[0])
+            print "Dropping " + str(t[0]) + " at " + str(t[2])
             DropBallInBasket(Basket_location, '/Basket')
+        print "Complete! Repeating in 7 seconds..."
         rospy.sleep(7.0)
         #except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             #continue
