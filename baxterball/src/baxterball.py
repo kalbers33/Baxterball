@@ -219,7 +219,7 @@ def DropBallInBasket(InitialLocation, Marker, zUpOffset = 0.18):
     MoveTo(right_arm, location, FindZRotation(rot), ( 0.0, 0.0, zUpOffset))
     rospy.sleep(0.5)'''
     GripperOpen()
-    (location,rot) = LookupTransform('/base', Marker,(location,rot))
+    #(location,rot) = LookupTransform('/base', Marker,(location,rot))
 
 if __name__ == '__main__':
     print "Begin Init"
